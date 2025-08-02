@@ -2,7 +2,7 @@
 
 This repository chronicles the development of BDX-R, a personal endeavor to create a bipedal robot inspired by Disney's BDX droids. The primary goal is to achieve stable walking and successfully bridge the simulation-to-reality (Sim2Real) gap using reinforcement learning.
 
-| BDX-R Physical Prototype | BDX-R in Isaac Lab Simulation |
+| BDX-R in Isaac Lab Simulation | BDX-R Physical Prototype|
 | :---: | :---: |
 | <img src="https://github.com/user-attachments/assets/7b92c5b6-71ba-4746-a2d3-77d880e18014" width="500" /> | <img src="https://github.com/user-attachments/assets/4f65d9e9-85ad-497f-b687-10c54377d0f2" width="302" /> |
 
