@@ -3,150 +3,187 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-import math
-
-import isaaclab.sim as sim_utils
-from isaaclab.assets import ArticulationCfg, AssetBaseCfg
-from isaaclab.envs import ManagerBasedRLEnvCfg
-from isaaclab.managers import EventTermCfg as EventTerm
-from isaaclab.managers import ObservationGroupCfg as ObsGroup
-from isaaclab.managers import ObservationTermCfg as ObsTerm
 from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
-from isaaclab.managers import TerminationTermCfg as DoneTerm
-from isaaclab.scene import InteractiveSceneCfg
 from isaaclab.utils import configclass
+import isaaclab.utils.math as math_utils
+from typing import Dict, Optional, Tuple
 
-from . import mdp
+import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
+from .bdxr_velocity_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg
+from isaaclab.sensors import ImuCfg
+from isaaclab.utils.math import quat_from_euler_xyz
+import torch
+from isaaclab.envs import ManagerBasedEnv
+from .bdxr_rewards import bipedal_air_time_reward, foot_clearance_reward, foot_slip_penalty, joint_position_penalty
+from isaaclab.managers import EventTermCfg as EventTerm
+
+# from . import mdp
 
 ##
 # Pre-defined configs
 ##
 
-from isaaclab_assets.robots.cartpole import CARTPOLE_CFG  # isort:skip
-
+from BDXR.robots.bdxr import BDX_CFG  # isort:skip
 
 ##
 # Scene definition
 ##
 
-
-@configclass
-class BdxrSceneCfg(InteractiveSceneCfg):
-    """Configuration for a cart-pole scene."""
-
-    # ground plane
-    ground = AssetBaseCfg(
-        prim_path="/World/ground",
-        spawn=sim_utils.GroundPlaneCfg(size=(100.0, 100.0)),
-    )
-
-    # robot
-    robot: ArticulationCfg = CARTPOLE_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
-
-    # lights
-    dome_light = AssetBaseCfg(
-        prim_path="/World/DomeLight",
-        spawn=sim_utils.DomeLightCfg(color=(0.9, 0.9, 0.9), intensity=500.0),
-    )
-
-
 ##
 # MDP settings
 ##
 
+def randomize_imu_mount(
+    env: ManagerBasedEnv,
+    env_ids: Optional[torch.Tensor],
+    sensor_cfg: SceneEntityCfg,
+    pos_range: Dict[str, Tuple[float, float]],
+    rot_range: Dict[str, Tuple[float, float]],
+) -> Dict[str, float]:
+    """Helper to randomise the IMU's local pose on every env reset."""
+    imu_sensor = env.scene.sensors[sensor_cfg.name]
 
-@configclass
-class ActionsCfg:
-    """Action specifications for the MDP."""
+    # Get the envs which reset
+    env_indices = (
+        env_ids
+        if env_ids is not None
+        else torch.arange(imu_sensor.num_instances, device=env.device)
+    )
+    num_envs_to_update = len(env_indices)
 
-    joint_effort = mdp.JointEffortActionCfg(asset_name="robot", joint_names=["slider_to_cart"], scale=100.0)
+    def sample_uniform(lo: float, hi: float) -> torch.Tensor:
+        """Return `num_envs_to_update` samples from [lo, hi)."""
+        return (hi - lo) * torch.rand(num_envs_to_update, device=env.device) + lo
 
-
-@configclass
-class ObservationsCfg:
-    """Observation specifications for the MDP."""
-
-    @configclass
-    class PolicyCfg(ObsGroup):
-        """Observations for policy group."""
-
-        # observation terms (order preserved)
-        joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel)
-        joint_vel_rel = ObsTerm(func=mdp.joint_vel_rel)
-
-        def __post_init__(self) -> None:
-            self.enable_corruption = False
-            self.concatenate_terms = True
-
-    # observation groups
-    policy: PolicyCfg = PolicyCfg()
-
-
-@configclass
-class EventCfg:
-    """Configuration for events."""
-
-    # reset
-    reset_cart_position = EventTerm(
-        func=mdp.reset_joints_by_offset,
-        mode="reset",
-        params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=["slider_to_cart"]),
-            "position_range": (-1.0, 1.0),
-            "velocity_range": (-0.5, 0.5),
-        },
+    # Sample translation offsets
+    position_offsets: torch.Tensor = torch.stack(
+        [
+            sample_uniform(*pos_range["x"]),
+            sample_uniform(*pos_range["y"]),
+            sample_uniform(*pos_range["z"]),
+        ],
+        dim=-1,  # shape = (N, 3)
     )
 
-    reset_pole_position = EventTerm(
-        func=mdp.reset_joints_by_offset,
-        mode="reset",
-        params={
-            "asset_cfg": SceneEntityCfg("robot", joint_names=["cart_to_pole"]),
-            "position_range": (-0.25 * math.pi, 0.25 * math.pi),
-            "velocity_range": (-0.25 * math.pi, 0.25 * math.pi),
-        },
+    # Sample orientation offsets
+    roll_offsets = sample_uniform(*rot_range["roll"])
+    pitch_offsets = sample_uniform(*rot_range["pitch"])
+    yaw_offsets = sample_uniform(*rot_range["yaw"])
+
+    quaternion_offsets: torch.Tensor = quat_from_euler_xyz(
+        roll_offsets, pitch_offsets, yaw_offsets  # shape = (N, 4)
     )
 
+    # Write the offsets into the sensor’s internal buffers
+    imu_sensor._offset_pos_b[env_indices] = position_offsets
+    imu_sensor._offset_quat_b[env_indices] = quaternion_offsets
+
+    # Return summary scalars for logging / curriculum
+    # Not sure if this is needed
+    mean_offset_cm: float = (position_offsets.norm(dim=-1).mean() * 100.0).item()
+    mean_tilt_deg: float = (
+        torch.rad2deg(torch.acos(quaternion_offsets[:, 0].clamp(-1.0, 1.0)))
+        .mean()
+        .item()
+    )
+
+    return {
+        "imu_offset_cm": mean_offset_cm,
+        "imu_tilt_deg": mean_tilt_deg,
+    }
+
+def print_robot_joint_info(env, entity_cfg: SceneEntityCfg):
+    """
+    An event function to print the robot's joint order and default positions
+    once at the very beginning of the simulation.
+    """
+    # This is a simple flag to ensure this function's body only runs one time.
+    if not hasattr(env, '_joint_info_printed'):
+        robot = env.scene[entity_cfg.name]
+        
+        joint_names_in_order = robot.data.joint_names
+        default_joint_pos = robot.data.default_joint_pos[0] # Get for the first env
+
+        print("\n" + "="*40)
+        print("      ROBOT JOINT CONFIGURATION (GROUND TRUTH)")
+        print("="*40)
+        print("This is the exact joint order and default positions for the policy.")
+        
+        if joint_names_in_order:
+            for i, name in enumerate(joint_names_in_order):
+                default_pos_value = default_joint_pos[i].item()
+                print(f"  Index {i:<2} | Joint Name: {name:<20} | Default Pos: {default_pos_value:.4f}")
+        else:
+            print("Could not retrieve joint names from the live environment.")
+            
+        print("="*40 + "\n")
+        
+        # Set the flag so this block never runs again.
+        env._joint_info_printed = True
 
 @configclass
-class RewardsCfg:
+class BDXRewards(RewardsCfg):
     """Reward terms for the MDP."""
 
-    # (1) Constant running reward
-    alive = RewTerm(func=mdp.is_alive, weight=1.0)
-    # (2) Failure penalty
-    terminating = RewTerm(func=mdp.is_terminated, weight=-2.0)
-    # (3) Primary task: keep pole upright
-    pole_pos = RewTerm(
-        func=mdp.joint_pos_target_l2,
+    termination_penalty = RewTerm(func=mdp.is_terminated, weight=-200.0)
+    air_time = RewTerm(
+        func=bipedal_air_time_reward,
+        weight=5.0,
+        params={
+            "mode_time": 0.3,
+            "velocity_threshold": 0.5,
+            "asset_cfg": SceneEntityCfg("robot"),
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_Foot"),
+        },
+    )
+    # penalize ankle joint limits
+    dof_pos_limits = RewTerm(
+        func=mdp.joint_pos_limits,
         weight=-1.0,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["cart_to_pole"]), "target": 0.0},
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*_Ankle")},
     )
-    # (4) Shaping tasks: lower cart velocity
-    cart_vel = RewTerm(
-        func=mdp.joint_vel_l1,
-        weight=-0.01,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["slider_to_cart"])},
+    # penalize deviation from default of the joints that are not essential for locomotion
+    joint_deviation_hip = RewTerm(
+        func=mdp.joint_deviation_l1,
+        weight=-1,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_Hip_Yaw", ".*_Hip_Roll"])},
     )
-    # (5) Shaping tasks: lower pole angular velocity
-    pole_vel = RewTerm(
-        func=mdp.joint_vel_l1,
-        weight=-0.005,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["cart_to_pole"])},
+    foot_clearance = RewTerm(
+        func=foot_clearance_reward,
+        weight=2,
+        params={
+            "std": 0.05,
+            "tanh_mult": 2.0,
+            "target_height": 0.1,
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*_Foot"),
+        },
     )
-
-
-@configclass
-class TerminationsCfg:
-    """Termination terms for the MDP."""
-
-    # (1) Time out
-    time_out = DoneTerm(func=mdp.time_out, time_out=True)
-    # (2) Cart out of bounds
-    cart_out_of_bounds = DoneTerm(
-        func=mdp.joint_pos_out_of_manual_limit,
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=["slider_to_cart"]), "bounds": (-3.0, 3.0)},
+    foot_slip = RewTerm(
+        func=foot_slip_penalty,
+        weight=-0.5,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*_Foot"),
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_Foot"),
+            "threshold": 1.0,
+        },
+    )
+    base_height_deviation = RewTerm(
+        func=mdp.base_height_l2,
+        weight=-2,  # Tune this weight as needed
+        params={
+            "target_height": 0.30846,
+            "asset_cfg": SceneEntityCfg(name="robot", body_names=["base_link"]),
+        },
+    )
+    joint_pos = RewTerm(
+        func=joint_position_penalty,
+        weight=-1,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
+            "stand_still_scale": 5.0,
+            "velocity_threshold": 0.5,
+        },
     )
 
 
@@ -156,25 +193,102 @@ class TerminationsCfg:
 
 
 @configclass
-class BdxrEnvCfg(ManagerBasedRLEnvCfg):
-    # Scene settings
-    scene: BdxrSceneCfg = BdxrSceneCfg(num_envs=4096, env_spacing=4.0)
-    # Basic settings
-    observations: ObservationsCfg = ObservationsCfg()
-    actions: ActionsCfg = ActionsCfg()
-    events: EventCfg = EventCfg()
-    # MDP settings
-    rewards: RewardsCfg = RewardsCfg()
-    terminations: TerminationsCfg = TerminationsCfg()
+class BDXRFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
+    """BDXR flat environment configuration."""
 
-    # Post initialization
-    def __post_init__(self) -> None:
-        """Post initialization."""
-        # general settings
-        self.decimation = 2
-        self.episode_length_s = 5
-        # viewer settings
-        self.viewer.eye = (8.0, 0.0, 5.0)
-        # simulation settings
-        self.sim.dt = 1 / 120
-        self.sim.render_interval = self.decimation
+    rewards: BDXRewards = BDXRewards()
+
+    def __post_init__(self):
+        super().__post_init__()
+        # scene
+        self.scene.robot = BDX_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/base_link"
+        self.scene.imu = ImuCfg(
+        prim_path="{ENV_REGEX_NS}/Robot/IMU_Mount",  # change if needed
+        debug_vis=True)
+
+        # actions
+        self.actions.joint_pos.scale = 0.5
+
+        # events
+        self.events.push_robot.params["velocity_range"] = {"x": (0.0, 0.0), "y": (0.0, 0.0)}
+        #self.events.push_robot = None
+        self.events.add_base_mass.params["asset_cfg"].body_names = ["base_link"]
+        self.events.add_base_mass.params["mass_distribution_params"] = (-0.5, 0.5)
+        self.events.reset_robot_joints.params["position_range"] = (0.8, 1.2)
+        self.events.base_external_force_torque.params["asset_cfg"].body_names = ["base_link"]
+        self.events.physics_material.params["static_friction_range"] = (0.1, 2)
+        self.events.physics_material.params["dynamic_friction_range"] = (0.1, 2)
+        self.events.physics_material.params["asset_cfg"].body_names = ".*_Foot"
+        self.events.randomize_imu_mount = EventTerm(
+            func=randomize_imu_mount,
+            mode="reset",
+            params={
+                "sensor_cfg": SceneEntityCfg("imu"),
+                "pos_range": {
+                    "x": (-0.05, 0.05),
+                    "y": (-0.05, 0.05),
+                    "z": (-0.05, 0.05),
+                },
+                "rot_range": {
+                    "roll": (-0.1, 0.1),
+                    "pitch": (-0.1, 0.1),
+                    "yaw": (-0.1, 0.1),
+                },
+            },
+        )
+        
+
+        self.events.reset_base.params = {
+            "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},
+            "velocity_range": {
+                "x": (0.0, 0.0),
+                "y": (0.0, 0.0),
+                "z": (0.0, 0.0),
+                "roll": (0.0, 0.0),
+                "pitch": (0.0, 0.0),
+                "yaw": (0.0, 0.0),
+            },
+        }
+
+        # terminations
+        self.terminations.base_contact.params["sensor_cfg"].body_names = [
+            "base_link",
+        ]
+
+        # rewards
+        self.rewards.undesired_contacts = None
+        self.rewards.dof_torques_l2.weight = -5.0e-6
+        self.rewards.track_lin_vel_xy_exp.weight = 5.0
+        self.rewards.track_ang_vel_z_exp.weight = 5.0
+        self.rewards.action_rate_l2.weight =-0.05     # A significant penalty on action rate
+        self.rewards.dof_acc_l2.weight =-1.25e-7      # A significant penalty on acceleration
+        self.rewards.flat_orientation_l2.weight = -2
+
+        # Walk
+        self.commands.base_velocity.ranges.lin_vel_x = (0,0)
+        self.commands.base_velocity.ranges.lin_vel_y = (-0.7, 0.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (0, 0)
+
+        # change terrain
+        #self.scene.terrain.max_init_terrain_level = None
+        ## reduce the number of terrains to save memory
+        #if self.scene.terrain.terrain_generator is not None:
+        #    self.scene.terrain.terrain_generator.difficulty_range = (0.0, 0.01)
+        #    self.scene.terrain.terrain_generator.num_rows = 5
+        #    self.scene.terrain.terrain_generator.num_cols = 5
+        #    self.scene.terrain.terrain_generator.curriculum = False
+
+
+        # change terrain
+        self.scene.terrain.terrain_type = "plane"
+        self.scene.terrain.terrain_generator = None
+
+        # no height scan
+        self.scene.height_scanner = None
+        self.observations.policy.height_scan = None
+        # no terrain curriculum
+        self.curriculum.terrain_levels = None
+
+
+        
