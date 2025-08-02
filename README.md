@@ -38,7 +38,17 @@ A policy is trained in this virtual space, allowing the BDX-R to learn and adapt
 
 ## 🚀 Installation
 
-To install the necessary packages for this project, run the following command:
+To install the necessary packages for this project, after cloning the repo, run the following command:
 
 ```bash
 python -m pip install -e source/BDXR
+
+## 🙏 Community and Acknowledgements
+
+This project is a personal learning journey and would not have been possible without the guidance and inspiration from the wider robotics community. A special thank you to:
+
+-   [louislelay](https://github.com/louislelay)
+-   [skelmir](https://github.com/skelmir)
+-   [Kscalelabs](https://github.com/Kscalelabs)
+
+Their expertise and willingness to share knowledge have been invaluable.
