@@ -48,7 +48,7 @@ python -m pip install -e source/BDXR
 This project is a personal learning journey and would not have been possible without the guidance and inspiration from the wider robotics community. A special thank you to:
 
 -   [louislelay](https://github.com/louislelay)
--   [skelmir](https://github.com/skelmir)
+-   [skelmir](https://github.com/rimim)
 -   [Kscalelabs](https://github.com/Kscalelabs)
 
 Their expertise and willingness to share knowledge have been invaluable.
