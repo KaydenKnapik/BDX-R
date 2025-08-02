@@ -42,7 +42,7 @@ To install the necessary packages for this project, after cloning the repo, run 
 
 ```bash
 python -m pip install -e source/BDXR
-
+```
 ## 🙏 Community and Acknowledgements
 
 This project is a personal learning journey and would not have been possible without the guidance and inspiration from the wider robotics community. A special thank you to:
