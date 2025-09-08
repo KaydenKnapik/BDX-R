@@ -23,7 +23,7 @@ gym.register(
 )
 
 gym.register(
-    id="Template-BDXR-v0",
+    id="Template-BDXR-Full-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
@@ -33,7 +33,7 @@ gym.register(
 )
 
 gym.register(
-    id="Template-BDXR-Play-v0",
+    id="Template-BDXR-Full-Play-v0",
     entry_point="isaaclab.envs:ManagerBasedRLEnv",
     disable_env_checker=True,
     kwargs={
