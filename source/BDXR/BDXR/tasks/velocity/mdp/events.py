@@ -70,3 +70,33 @@ def randomize_imu_mount(
         "imu_offset_cm": mean_offset_cm,
         "imu_tilt_deg": mean_tilt_deg,
     }
+
+
+def print_robot_joint_info(env, entity_cfg: SceneEntityCfg):
+    """
+    An event function to print the robot's joint order and default positions
+    once at the very beginning of the simulation.
+    """
+    # This is a simple flag to ensure this function's body only runs one time.
+    if not hasattr(env, '_joint_info_printed'):
+        robot = env.scene[entity_cfg.name]
+        
+        joint_names_in_order = robot.data.joint_names
+        default_joint_pos = robot.data.default_joint_pos[0] # Get for the first env
+
+        print("\n" + "="*40)
+        print("      ROBOT JOINT CONFIGURATION (GROUND TRUTH)")
+        print("="*40)
+        print("This is the exact joint order and default positions for the policy.")
+        
+        if joint_names_in_order:
+            for i, name in enumerate(joint_names_in_order):
+                default_pos_value = default_joint_pos[i].item()
+                print(f"  Index {i:<2} | Joint Name: {name:<20} | Default Pos: {default_pos_value:.4f}")
+        else:
+            print("Could not retrieve joint names from the live environment.")
+            
+        print("="*40 + "\n")
+        
+        # Set the flag so this block never runs again.
+        env._joint_info_printed = True
