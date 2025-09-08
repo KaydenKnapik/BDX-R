@@ -3,21 +3,21 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-from isaaclab.managers import RewardTermCfg as RewTerm
-from isaaclab.managers import SceneEntityCfg
-from isaaclab.utils import configclass
+# from isaaclab.managers import RewardTermCfg as RewTerm
+# from isaaclab.managers import SceneEntityCfg
+# from isaaclab.utils import configclass
 # import isaaclab.utils.math as math_utils
 # from typing import Dict, Optional, Tuple
 
 
 # from .bdxr_velocity_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg
-from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg
+# from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg
 from isaaclab.sensors import ImuCfg
 # from isaaclab.utils.math import quat_from_euler_xyz
 # import torch
 # from isaaclab.envs import ManagerBasedEnv
 # from .bdxr_rewards import bipedal_air_time_reward, foot_clearance_reward, foot_slip_penalty, joint_position_penalty
-from isaaclab.managers import EventTermCfg as EventTerm
+# from isaaclab.managers import EventTermCfg as EventTerm
 
 
 
@@ -51,7 +51,7 @@ from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
-import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
+# import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
 
 import isaaclab.envs.mdp.curriculums as mdp_curriculum
 
@@ -65,34 +65,7 @@ from isaaclab.terrains.config.rough import ROUGH_TERRAINS_CFG  # isort: skip
 # Scene definition
 ##
 # This is the NEW, CORRECT line that matches what Isaac Lab expects
-def print_robot_joint_info(env, env_ids, entity_cfg: SceneEntityCfg):
-    """
-    An event function to print the robot's joint order and default positions
-    once at the very beginning of the simulation.
-    """
-    # This is a simple flag to ensure this function's body only runs one time.
-    if not hasattr(env, '_joint_info_printed'):
-        robot = env.scene[entity_cfg.name]
-        
-        joint_names_in_order = robot.data.joint_names
-        default_joint_pos = robot.data.default_joint_pos[0] # Get for the first env
 
-        print("\n" + "="*40)
-        print("      ROBOT JOINT CONFIGURATION (GROUND TRUTH)")
-        print("="*40)
-        print("This is the exact joint order and default positions for the policy.")
-        
-        if joint_names_in_order:
-            for i, name in enumerate(joint_names_in_order):
-                default_pos_value = default_joint_pos[i].item()
-                print(f"  Index {i:<2} | Joint Name: {name:<20} | Default Pos: {default_pos_value:.4f}")
-        else:
-            print("Could not retrieve joint names from the live environment.")
-            
-        print("="*40 + "\n")
-        
-        # Set the flag so this block never runs again.
-        env._joint_info_printed = True
 
 
 @configclass
@@ -468,7 +441,7 @@ class CurriculumCfg:
 # Environment configuration
 ##
 
-
+# TODO: instead of setting everything here, change the default values in the base cfg files
 @configclass
 class BDXRFlatEnvCfg(ManagerBasedRLEnvCfg):
     """BDXR flat environment configuration."""

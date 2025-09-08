@@ -72,7 +72,8 @@ def randomize_imu_mount(
     }
 
 
-def print_robot_joint_info(env, entity_cfg: SceneEntityCfg):
+
+def print_robot_joint_info(env, env_ids, entity_cfg: SceneEntityCfg):
     """
     An event function to print the robot's joint order and default positions
     once at the very beginning of the simulation.
