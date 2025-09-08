@@ -9,7 +9,7 @@ from isaaclab.utils import configclass
 # import isaaclab.utils.math as math_utils
 # from typing import Dict, Optional, Tuple
 
-import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
+
 # from .bdxr_velocity_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg
 from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg
 from isaaclab.sensors import ImuCfg
@@ -18,6 +18,9 @@ from isaaclab.sensors import ImuCfg
 # from isaaclab.envs import ManagerBasedEnv
 # from .bdxr_rewards import bipedal_air_time_reward, foot_clearance_reward, foot_slip_penalty, joint_position_penalty
 from isaaclab.managers import EventTermCfg as EventTerm
+
+
+
 import BDXR.tasks.velocity.mdp as mdp
 # from . import mdp
 
@@ -27,16 +30,6 @@ import BDXR.tasks.velocity.mdp as mdp
 
 from BDXR.robots.bdxr import BDX_CFG  # isort:skip
 
-
-
-
-
-
-
-# Copyright (c) 2022-2025, The Isaac Lab Project Developers.
-# All rights reserved.
-#
-# SPDX-License-Identifier: BSD-3-Clause
 
 import math
 from dataclasses import MISSING
@@ -57,7 +50,6 @@ from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
-import isaaclab.envs.mdp.events as mdp_events
 
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
 
@@ -219,7 +211,7 @@ class EventCfg:
     """Configuration for events."""
 
     verify_joint_order = EventTerm(
-        func=print_robot_joint_info,
+        func=mdp.print_robot_joint_info,
         mode="startup", # <-- This makes it run only ONCE at the very beginning.
         params={"entity_cfg": SceneEntityCfg("robot")}
     )
@@ -395,7 +387,7 @@ class RewardsCfg:
         },
     )
     joint_pos = RewTerm(
-        func=joint_position_penalty,
+        func=mdp.joint_position_penalty,
         weight=-1,
         params={
             "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
@@ -430,7 +422,8 @@ def modify_push_velocity_in_dict(env, env_ids, old_params_dict, new_velocity_ran
         return old_params_dict
     else:
         # It's not time yet, so signal that no change should be made.
-        return mdp_curriculum.modify_env_param.NO_CHANGE
+        return mdp.modify_env_param.NO_CHANGE
+    
 @configclass
 class CurriculumCfg:
     """Curriculum terms for the MDP."""
@@ -439,7 +432,7 @@ class CurriculumCfg:
 
     # --- THIS IS THE FINAL CORRECTED CURRICULUM TERM ---
     activate_push = CurrTerm(
-        func=mdp_curriculum.modify_env_param,
+        func=mdp.modify_env_param,
         params={
             # PARAM 1: "address" - Correctly points to the dictionary itself.
             "address": "event_manager.cfg.push_robot.params",
@@ -455,7 +448,7 @@ class CurriculumCfg:
         },
     )
     activate_harder_push = CurrTerm(
-        func=mdp_curriculum.modify_env_param,
+        func=mdp.modify_env_param,
         params={
             # PARAM 1: "address" - Correctly points to the dictionary itself.
             "address": "event_manager.cfg.push_robot.params",
@@ -477,8 +470,8 @@ class CurriculumCfg:
 
 
 @configclass
-class LocomotionVelocityRoughEnvCfg(ManagerBasedRLEnvCfg):
-    """Configuration for the locomotion velocity-tracking environment."""
+class BDXRFlatEnvCfg(ManagerBasedRLEnvCfg):
+    """BDXR flat environment configuration."""
 
     # Scene settings
     scene: MySceneCfg = MySceneCfg(num_envs=4096, env_spacing=2.5)
@@ -518,38 +511,13 @@ class LocomotionVelocityRoughEnvCfg(ManagerBasedRLEnvCfg):
             if self.scene.terrain.terrain_generator is not None:
                 self.scene.terrain.terrain_generator.curriculum = False
 
-
-
-##
-# Scene definition
-##
-
-##
-# MDP settings
-##
-
-
-
-
-
-
-##
-# Environment configuration
-##
-
-
-@configclass
-class BDXRFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
-    """BDXR flat environment configuration."""
-
-    def __post_init__(self):
-        super().__post_init__()
         # scene
         self.scene.robot = BDX_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/base_link"
         self.scene.imu = ImuCfg(
-        prim_path="{ENV_REGEX_NS}/Robot/IMU_Mount",  # change if needed
-        debug_vis=True)
+            prim_path="{ENV_REGEX_NS}/Robot/IMU_Mount",  # change if needed
+            debug_vis=True
+        )
 
         # actions
         self.actions.joint_pos.scale = 0.5
