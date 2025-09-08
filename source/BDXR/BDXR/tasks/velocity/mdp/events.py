@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from isaaclab.assets import Articulation
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils.math import wrap_to_pi
+from isaaclab.utils.math import quat_from_euler_xyz
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv

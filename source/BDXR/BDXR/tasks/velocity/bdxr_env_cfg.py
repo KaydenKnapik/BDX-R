@@ -33,7 +33,7 @@ from BDXR.robots.bdxr import BDX_CFG  # isort:skip
 
 import math
 from dataclasses import MISSING
-
+from isaaclab.utils.math import quat_from_euler_xyz
 import isaaclab.sim as sim_utils
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg
 from isaaclab.envs import ManagerBasedRLEnvCfg
@@ -52,8 +52,6 @@ from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
 # import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
-
-import isaaclab.envs.mdp.curriculums as mdp_curriculum
 
 ##
 # Pre-defined configs
@@ -317,7 +315,7 @@ class RewardsCfg:
             "mode_time": 0.3,
             "velocity_threshold": 0.5,
             "asset_cfg": SceneEntityCfg("robot"),
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_Foot"),
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_FOOT"),
         },
     )
     # penalize ankle joint limits
@@ -339,15 +337,15 @@ class RewardsCfg:
             "std": 0.05,
             "tanh_mult": 2.0,
             "target_height": 0.1,
-            "asset_cfg": SceneEntityCfg("robot", body_names=".*_Foot"),
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*_FOOT"),
         },
     )
     foot_slip = RewTerm(
         func=mdp.foot_slip_penalty,
         weight=-0.5,
         params={
-            "asset_cfg": SceneEntityCfg("robot", body_names=".*_Foot"),
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_Foot"),
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*_FOOT"),
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_FOOT"),
             "threshold": 1.0,
         },
     )
@@ -504,7 +502,7 @@ class BDXRFlatEnvCfg(ManagerBasedRLEnvCfg):
         self.events.base_external_force_torque.params["asset_cfg"].body_names = ["base_link"]
         self.events.physics_material.params["static_friction_range"] = (0.1, 2)
         self.events.physics_material.params["dynamic_friction_range"] = (0.1, 2)
-        self.events.physics_material.params["asset_cfg"].body_names = ".*_Foot"
+        self.events.physics_material.params["asset_cfg"].body_names = ".*_FOOT"
         self.events.randomize_imu_mount = EventTerm(
             func=mdp.randomize_imu_mount,
             mode="reset",

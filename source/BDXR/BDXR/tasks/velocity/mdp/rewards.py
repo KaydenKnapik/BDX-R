@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from isaaclab.assets import Articulation
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils.math import wrap_to_pi
+from isaaclab.utils.math import quat_from_euler_xyz
 
 if TYPE_CHECKING:
     from isaaclab.envs import ManagerBasedRLEnv
@@ -92,98 +93,98 @@ def base_linear_velocity_reward(
     return torch.exp(-lin_vel_error / std) * velocity_scaling_multiple
 
 
-class GaitReward(ManagerTermBase):
-    """Gait enforcing reward term for quadrupeds.
+# class GaitReward(ManagerTermBase):
+#     """Gait enforcing reward term for quadrupeds.
 
-    This reward penalizes contact timing differences between selected foot pairs defined in :attr:`synced_feet_pair_names`
-    to bias the policy towards a desired gait, i.e trotting, bounding, or pacing. Note that this reward is only for
-    quadrupedal gaits with two pairs of synchronized feet.
-    """
+#     This reward penalizes contact timing differences between selected foot pairs defined in :attr:`synced_feet_pair_names`
+#     to bias the policy towards a desired gait, i.e trotting, bounding, or pacing. Note that this reward is only for
+#     quadrupedal gaits with two pairs of synchronized feet.
+#     """
 
-    def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRLEnv):
-        """Initialize the term.
+#     def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRLEnv):
+#         """Initialize the term.
 
-        Args:
-            cfg: The configuration of the reward.
-            env: The RL environment instance.
-        """
-        super().__init__(cfg, env)
-        self.std: float = cfg.params["std"]
-        self.max_err: float = cfg.params["max_err"]
-        self.velocity_threshold: float = cfg.params["velocity_threshold"]
-        self.contact_sensor: ContactSensor = env.scene.sensors[cfg.params["sensor_cfg"].name]
-        self.asset: Articulation = env.scene[cfg.params["asset_cfg"].name]
-        # match foot body names with corresponding foot body ids
-        synced_feet_pair_names = cfg.params["synced_feet_pair_names"]
-        if (
-            len(synced_feet_pair_names) != 2
-            or len(synced_feet_pair_names[0]) != 2
-            or len(synced_feet_pair_names[1]) != 2
-        ):
-            raise ValueError("This reward only supports gaits with two pairs of synchronized feet, like trotting.")
-        synced_feet_pair_0 = self.contact_sensor.find_bodies(synced_feet_pair_names[0])[0]
-        synced_feet_pair_1 = self.contact_sensor.find_bodies(synced_feet_pair_names[1])[0]
-        self.synced_feet_pairs = [synced_feet_pair_0, synced_feet_pair_1]
+#         Args:
+#             cfg: The configuration of the reward.
+#             env: The RL environment instance.
+#         """
+#         super().__init__(cfg, env)
+#         self.std: float = cfg.params["std"]
+#         self.max_err: float = cfg.params["max_err"]
+#         self.velocity_threshold: float = cfg.params["velocity_threshold"]
+#         self.contact_sensor: ContactSensor = env.scene.sensors[cfg.params["sensor_cfg"].name]
+#         self.asset: Articulation = env.scene[cfg.params["asset_cfg"].name]
+#         # match foot body names with corresponding foot body ids
+#         synced_feet_pair_names = cfg.params["synced_feet_pair_names"]
+#         if (
+#             len(synced_feet_pair_names) != 2
+#             or len(synced_feet_pair_names[0]) != 2
+#             or len(synced_feet_pair_names[1]) != 2
+#         ):
+#             raise ValueError("This reward only supports gaits with two pairs of synchronized feet, like trotting.")
+#         synced_feet_pair_0 = self.contact_sensor.find_bodies(synced_feet_pair_names[0])[0]
+#         synced_feet_pair_1 = self.contact_sensor.find_bodies(synced_feet_pair_names[1])[0]
+#         self.synced_feet_pairs = [synced_feet_pair_0, synced_feet_pair_1]
 
-    def __call__(
-        self,
-        env: ManagerBasedRLEnv,
-        std: float,
-        max_err: float,
-        velocity_threshold: float,
-        synced_feet_pair_names,
-        asset_cfg: SceneEntityCfg,
-        sensor_cfg: SceneEntityCfg,
-    ) -> torch.Tensor:
-        """Compute the reward.
+#     def __call__(
+#         self,
+#         env: ManagerBasedRLEnv,
+#         std: float,
+#         max_err: float,
+#         velocity_threshold: float,
+#         synced_feet_pair_names,
+#         asset_cfg: SceneEntityCfg,
+#         sensor_cfg: SceneEntityCfg,
+#     ) -> torch.Tensor:
+#         """Compute the reward.
 
-        This reward is defined as a multiplication between six terms where two of them enforce pair feet
-        being in sync and the other four rewards if all the other remaining pairs are out of sync
+#         This reward is defined as a multiplication between six terms where two of them enforce pair feet
+#         being in sync and the other four rewards if all the other remaining pairs are out of sync
 
-        Args:
-            env: The RL environment instance.
-        Returns:
-            The reward value.
-        """
-        # for synchronous feet, the contact (air) times of two feet should match
-        sync_reward_0 = self._sync_reward_func(self.synced_feet_pairs[0][0], self.synced_feet_pairs[0][1])
-        sync_reward_1 = self._sync_reward_func(self.synced_feet_pairs[1][0], self.synced_feet_pairs[1][1])
-        sync_reward = sync_reward_0 * sync_reward_1
-        # for asynchronous feet, the contact time of one foot should match the air time of the other one
-        async_reward_0 = self._async_reward_func(self.synced_feet_pairs[0][0], self.synced_feet_pairs[1][0])
-        async_reward_1 = self._async_reward_func(self.synced_feet_pairs[0][1], self.synced_feet_pairs[1][1])
-        async_reward_2 = self._async_reward_func(self.synced_feet_pairs[0][0], self.synced_feet_pairs[1][1])
-        async_reward_3 = self._async_reward_func(self.synced_feet_pairs[1][0], self.synced_feet_pairs[0][1])
-        async_reward = async_reward_0 * async_reward_1 * async_reward_2 * async_reward_3
-        # only enforce gait if cmd > 0
-        cmd = torch.norm(env.command_manager.get_command("base_velocity"), dim=1)
-        body_vel = torch.linalg.norm(self.asset.data.root_lin_vel_b[:, :2], dim=1)
-        return torch.where(
-            torch.logical_or(cmd > 0.0, body_vel > self.velocity_threshold), sync_reward * async_reward, 0.0
-        )
+#         Args:
+#             env: The RL environment instance.
+#         Returns:
+#             The reward value.
+#         """
+#         # for synchronous feet, the contact (air) times of two feet should match
+#         sync_reward_0 = self._sync_reward_func(self.synced_feet_pairs[0][0], self.synced_feet_pairs[0][1])
+#         sync_reward_1 = self._sync_reward_func(self.synced_feet_pairs[1][0], self.synced_feet_pairs[1][1])
+#         sync_reward = sync_reward_0 * sync_reward_1
+#         # for asynchronous feet, the contact time of one foot should match the air time of the other one
+#         async_reward_0 = self._async_reward_func(self.synced_feet_pairs[0][0], self.synced_feet_pairs[1][0])
+#         async_reward_1 = self._async_reward_func(self.synced_feet_pairs[0][1], self.synced_feet_pairs[1][1])
+#         async_reward_2 = self._async_reward_func(self.synced_feet_pairs[0][0], self.synced_feet_pairs[1][1])
+#         async_reward_3 = self._async_reward_func(self.synced_feet_pairs[1][0], self.synced_feet_pairs[0][1])
+#         async_reward = async_reward_0 * async_reward_1 * async_reward_2 * async_reward_3
+#         # only enforce gait if cmd > 0
+#         cmd = torch.norm(env.command_manager.get_command("base_velocity"), dim=1)
+#         body_vel = torch.linalg.norm(self.asset.data.root_lin_vel_b[:, :2], dim=1)
+#         return torch.where(
+#             torch.logical_or(cmd > 0.0, body_vel > self.velocity_threshold), sync_reward * async_reward, 0.0
+#         )
 
-    """
-    Helper functions.
-    """
+#     """
+#     Helper functions.
+#     """
 
-    def _sync_reward_func(self, foot_0: int, foot_1: int) -> torch.Tensor:
-        """Reward synchronization of two feet."""
-        air_time = self.contact_sensor.data.current_air_time
-        contact_time = self.contact_sensor.data.current_contact_time
-        # penalize the difference between the most recent air time and contact time of synced feet pairs.
-        se_air = torch.clip(torch.square(air_time[:, foot_0] - air_time[:, foot_1]), max=self.max_err**2)
-        se_contact = torch.clip(torch.square(contact_time[:, foot_0] - contact_time[:, foot_1]), max=self.max_err**2)
-        return torch.exp(-(se_air + se_contact) / self.std)
+#     def _sync_reward_func(self, foot_0: int, foot_1: int) -> torch.Tensor:
+#         """Reward synchronization of two feet."""
+#         air_time = self.contact_sensor.data.current_air_time
+#         contact_time = self.contact_sensor.data.current_contact_time
+#         # penalize the difference between the most recent air time and contact time of synced feet pairs.
+#         se_air = torch.clip(torch.square(air_time[:, foot_0] - air_time[:, foot_1]), max=self.max_err**2)
+#         se_contact = torch.clip(torch.square(contact_time[:, foot_0] - contact_time[:, foot_1]), max=self.max_err**2)
+#         return torch.exp(-(se_air + se_contact) / self.std)
 
-    def _async_reward_func(self, foot_0: int, foot_1: int) -> torch.Tensor:
-        """Reward anti-synchronization of two feet."""
-        air_time = self.contact_sensor.data.current_air_time
-        contact_time = self.contact_sensor.data.current_contact_time
-        # penalize the difference between opposing contact modes air time of feet 1 to contact time of feet 2
-        # and contact time of feet 1 to air time of feet 2) of feet pairs that are not in sync with each other.
-        se_act_0 = torch.clip(torch.square(air_time[:, foot_0] - contact_time[:, foot_1]), max=self.max_err**2)
-        se_act_1 = torch.clip(torch.square(contact_time[:, foot_0] - air_time[:, foot_1]), max=self.max_err**2)
-        return torch.exp(-(se_act_0 + se_act_1) / self.std)
+#     def _async_reward_func(self, foot_0: int, foot_1: int) -> torch.Tensor:
+#         """Reward anti-synchronization of two feet."""
+#         air_time = self.contact_sensor.data.current_air_time
+#         contact_time = self.contact_sensor.data.current_contact_time
+#         # penalize the difference between opposing contact modes air time of feet 1 to contact time of feet 2
+#         # and contact time of feet 1 to air time of feet 2) of feet pairs that are not in sync with each other.
+#         se_act_0 = torch.clip(torch.square(air_time[:, foot_0] - contact_time[:, foot_1]), max=self.max_err**2)
+#         se_act_1 = torch.clip(torch.square(contact_time[:, foot_0] - air_time[:, foot_1]), max=self.max_err**2)
+#         return torch.exp(-(se_act_0 + se_act_1) / self.std)
 
 
 def foot_clearance_reward(
