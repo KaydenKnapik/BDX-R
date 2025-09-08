@@ -10,30 +10,10 @@
 # from typing import Dict, Optional, Tuple
 
 
-# from .bdxr_velocity_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg
-# from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg
-from isaaclab.sensors import ImuCfg
-# from isaaclab.utils.math import quat_from_euler_xyz
-# import torch
-# from isaaclab.envs import ManagerBasedEnv
-# from .bdxr_rewards import bipedal_air_time_reward, foot_clearance_reward, foot_slip_penalty, joint_position_penalty
-# from isaaclab.managers import EventTermCfg as EventTerm
-
-
-
-import BDXR.tasks.velocity.mdp as mdp
-# from . import mdp
-
-##
-# Pre-defined configs
-##
-
-from BDXR.robots.bdxr import BDX_CFG  # isort:skip
-
-
 import math
 from dataclasses import MISSING
-from isaaclab.utils.math import quat_from_euler_xyz
+
+import BDXR.tasks.velocity.mdp as mdp
 import isaaclab.sim as sim_utils
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg
 from isaaclab.envs import ManagerBasedRLEnvCfg
@@ -45,11 +25,32 @@ from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.scene import InteractiveSceneCfg
-from isaaclab.sensors import ContactSensorCfg, RayCasterCfg, patterns
+
+# from .bdxr_velocity_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg
+# from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg
+from isaaclab.sensors import ContactSensorCfg, ImuCfg, RayCasterCfg, patterns
 from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
+
+# from isaaclab.utils.math import quat_from_euler_xyz
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
+
+# from isaaclab.utils.math import quat_from_euler_xyz
+# import torch
+# from isaaclab.envs import ManagerBasedEnv
+# from .bdxr_rewards import bipedal_air_time_reward, foot_clearance_reward, foot_slip_penalty, joint_position_penalty
+# from isaaclab.managers import EventTermCfg as EventTerm
+
+
+# from . import mdp
+
+##
+# Pre-defined configs
+##
+
+from BDXR.robots.bdxr import BDX_CFG  # isort:skip
+
 
 # import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
 
@@ -63,7 +64,6 @@ from isaaclab.terrains.config.rough import ROUGH_TERRAINS_CFG  # isort: skip
 # Scene definition
 ##
 # This is the NEW, CORRECT line that matches what Isaac Lab expects
-
 
 
 @configclass
@@ -152,7 +152,7 @@ class ObservationsCfg:
 
         # observation terms (order preserved)
         imu_ang_vel = ObsTerm(func=mdp.imu_ang_vel, noise=Unoise(n_min=-0.1, n_max=0.1))
-        #imu_lin_acc = ObsTerm(func=mdp.imu_lin_acc, noise=Unoise(n_min=-0.5, n_max=0.5))
+        # imu_lin_acc = ObsTerm(func=mdp.imu_lin_acc, noise=Unoise(n_min=-0.5, n_max=0.5))
 
         projected_gravity = ObsTerm(
             func=mdp.projected_gravity,
@@ -183,8 +183,8 @@ class EventCfg:
 
     verify_joint_order = EventTerm(
         func=mdp.print_robot_joint_info,
-        mode="startup", # <-- This makes it run only ONCE at the very beginning.
-        params={"entity_cfg": SceneEntityCfg("robot")}
+        mode="startup",  # <-- This makes it run only ONCE at the very beginning.
+        params={"entity_cfg": SceneEntityCfg("robot")},
     )
 
     # startup
@@ -228,7 +228,7 @@ class EventCfg:
             "operation": "scale",
             "stiffness_distribution_params": (0.6, 1.4),
             "damping_distribution_params": (0.6, 1.4),
-        }
+        },
     )
     randomize_joint_parameters = EventTerm(
         func=mdp.randomize_joint_parameters,
@@ -238,7 +238,7 @@ class EventCfg:
             "operation": "scale",
             "friction_distribution_params": (0.8, 1.2),
             "armature_distribution_params": (0.8, 1.2),
-        }
+        },
     )
 
     reset_base = EventTerm(
@@ -256,7 +256,6 @@ class EventCfg:
             },
         },
     )
-    
 
     reset_robot_joints = EventTerm(
         func=mdp.reset_joints_by_scale,
@@ -282,7 +281,7 @@ class RewardsCfg:
 
     termination_penalty = RewTerm(func=mdp.is_terminated, weight=-200.0)
 
-    ## -- task
+    # -- task
     track_lin_vel_xy_exp = RewTerm(
         func=mdp.track_lin_vel_xy_exp, weight=1.0, params={"command_name": "base_velocity", "std": math.sqrt(0.25)}
     )
@@ -368,8 +367,6 @@ class RewardsCfg:
     )
 
 
-
-
 @configclass
 class TerminationsCfg:
     """Termination terms for the MDP."""
@@ -380,6 +377,7 @@ class TerminationsCfg:
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="base"), "threshold": 1.0},
     )
 
+
 # --- THIS IS THE CORRECTED CUSTOM FUNCTION ---
 def modify_push_velocity_in_dict(env, env_ids, old_params_dict, new_velocity_range, num_steps):
     """
@@ -388,13 +386,14 @@ def modify_push_velocity_in_dict(env, env_ids, old_params_dict, new_velocity_ran
     """
     if env.common_step_counter > num_steps:
         # Modify the 'velocity_range' key in the dictionary we received
-        old_params_dict['velocity_range'] = new_velocity_range
+        old_params_dict["velocity_range"] = new_velocity_range
         # Return the ENTIRE modified dictionary
         return old_params_dict
     else:
         # It's not time yet, so signal that no change should be made.
         return mdp.modify_env_param.NO_CHANGE
-    
+
+
 @configclass
 class CurriculumCfg:
     """Curriculum terms for the MDP."""
@@ -407,10 +406,10 @@ class CurriculumCfg:
         params={
             # PARAM 1: "address" - Correctly points to the dictionary itself.
             "address": "event_manager.cfg.push_robot.params",
-#
+            #
             # PARAM 2: "modify_fn" - Uses our new dictionary-modifying function.
             "modify_fn": modify_push_velocity_in_dict,
-#
+            #
             # PARAM 3: "modify_params" - This stays the same.
             "modify_params": {
                 "new_velocity_range": {"x": (-0.1, 0.1), "y": (-0.1, 0.1)},
@@ -423,10 +422,10 @@ class CurriculumCfg:
         params={
             # PARAM 1: "address" - Correctly points to the dictionary itself.
             "address": "event_manager.cfg.push_robot.params",
-#
+            #
             # PARAM 2: "modify_fn" - Uses our new dictionary-modifying function.
             "modify_fn": modify_push_velocity_in_dict,
-#
+            #
             # PARAM 3: "modify_params" - This stays the same.
             "modify_params": {
                 "new_velocity_range": {"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
@@ -435,9 +434,11 @@ class CurriculumCfg:
         },
     )
 
+
 ##
 # Environment configuration
 ##
+
 
 # TODO: instead of setting everything here, change the default values in the base cfg files
 @configclass
@@ -485,17 +486,14 @@ class BDXRFlatEnvCfg(ManagerBasedRLEnvCfg):
         # scene
         self.scene.robot = BDX_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/base_link"
-        self.scene.imu = ImuCfg(
-            prim_path="{ENV_REGEX_NS}/Robot/IMU_Mount",  # change if needed
-            debug_vis=True
-        )
+        self.scene.imu = ImuCfg(prim_path="{ENV_REGEX_NS}/Robot/IMU_Mount", debug_vis=True)  # change if needed
 
         # actions
         self.actions.joint_pos.scale = 0.5
 
         # events
         self.events.push_robot.params["velocity_range"] = {"x": (0.0, 0.0), "y": (0.0, 0.0)}
-        #self.events.push_robot = None
+        # self.events.push_robot = None
         self.events.add_base_mass.params["asset_cfg"].body_names = ["base_link"]
         self.events.add_base_mass.params["mass_distribution_params"] = (-0.5, 0.5)
         self.events.reset_robot_joints.params["position_range"] = (0.8, 1.2)
@@ -520,7 +518,6 @@ class BDXRFlatEnvCfg(ManagerBasedRLEnvCfg):
                 },
             },
         )
-        
 
         self.events.reset_base.params = {
             "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},
@@ -544,24 +541,23 @@ class BDXRFlatEnvCfg(ManagerBasedRLEnvCfg):
         self.rewards.dof_torques_l2.weight = -5.0e-6
         self.rewards.track_lin_vel_xy_exp.weight = 5.0
         self.rewards.track_ang_vel_z_exp.weight = 5.0
-        self.rewards.action_rate_l2.weight =-0.05     # A significant penalty on action rate
-        self.rewards.dof_acc_l2.weight =-1.25e-7      # A significant penalty on acceleration
+        self.rewards.action_rate_l2.weight = -0.05  # A significant penalty on action rate
+        self.rewards.dof_acc_l2.weight = -1.25e-7  # A significant penalty on acceleration
         self.rewards.flat_orientation_l2.weight = -2
 
         # Walk
-        self.commands.base_velocity.ranges.lin_vel_x = (0,0)
+        self.commands.base_velocity.ranges.lin_vel_x = (0, 0)
         self.commands.base_velocity.ranges.lin_vel_y = (-0.7, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (0, 0)
 
         # change terrain
-        #self.scene.terrain.max_init_terrain_level = None
-        ## reduce the number of terrains to save memory
-        #if self.scene.terrain.terrain_generator is not None:
+        # self.scene.terrain.max_init_terrain_level = None
+        # reduce the number of terrains to save memory
+        # if self.scene.terrain.terrain_generator is not None:
         #    self.scene.terrain.terrain_generator.difficulty_range = (0.0, 0.01)
         #    self.scene.terrain.terrain_generator.num_rows = 5
         #    self.scene.terrain.terrain_generator.num_cols = 5
         #    self.scene.terrain.terrain_generator.curriculum = False
-
 
         # change terrain
         self.scene.terrain.terrain_type = "plane"
@@ -572,6 +568,3 @@ class BDXRFlatEnvCfg(ManagerBasedRLEnvCfg):
         self.observations.policy.height_scan = None
         # no terrain curriculum
         self.curriculum.terrain_levels = None
-
-
-        

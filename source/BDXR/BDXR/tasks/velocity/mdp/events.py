@@ -1,16 +1,16 @@
-
 from __future__ import annotations
 
 import torch
-from typing import TYPE_CHECKING
 
-from isaaclab.assets import Articulation
+# from isaaclab.assets import Articulation
 from isaaclab.managers import SceneEntityCfg
-from isaaclab.utils.math import wrap_to_pi
 from isaaclab.utils.math import quat_from_euler_xyz
 
-if TYPE_CHECKING:
-    from isaaclab.envs import ManagerBasedRLEnv
+# from typing import TYPE_CHECKING
+
+
+# if TYPE_CHECKING:
+#     from isaaclab.envs import ManagerBasedRLEnv
 
 
 def randomize_imu_mount(
@@ -24,11 +24,7 @@ def randomize_imu_mount(
     imu_sensor = env.scene.sensors[sensor_cfg.name]
 
     # Get the envs which reset
-    env_indices = (
-        env_ids
-        if env_ids is not None
-        else torch.arange(imu_sensor.num_instances, device=env.device)
-    )
+    env_indices = env_ids if env_ids is not None else torch.arange(imu_sensor.num_instances, device=env.device)
     num_envs_to_update = len(env_indices)
 
     def sample_uniform(lo: float, hi: float) -> torch.Tensor:
@@ -50,9 +46,7 @@ def randomize_imu_mount(
     pitch_offsets = sample_uniform(*rot_range["pitch"])
     yaw_offsets = sample_uniform(*rot_range["yaw"])
 
-    quaternion_offsets: torch.Tensor = quat_from_euler_xyz(
-        roll_offsets, pitch_offsets, yaw_offsets  # shape = (N, 4)
-    )
+    quaternion_offsets: torch.Tensor = quat_from_euler_xyz(roll_offsets, pitch_offsets, yaw_offsets)  # shape = (N, 4)
 
     # Write the offsets into the sensor’s internal buffers
     imu_sensor._offset_pos_b[env_indices] = position_offsets
@@ -61,17 +55,12 @@ def randomize_imu_mount(
     # Return summary scalars for logging / curriculum
     # Not sure if this is needed
     mean_offset_cm: float = (position_offsets.norm(dim=-1).mean() * 100.0).item()
-    mean_tilt_deg: float = (
-        torch.rad2deg(torch.acos(quaternion_offsets[:, 0].clamp(-1.0, 1.0)))
-        .mean()
-        .item()
-    )
+    mean_tilt_deg: float = torch.rad2deg(torch.acos(quaternion_offsets[:, 0].clamp(-1.0, 1.0))).mean().item()
 
     return {
         "imu_offset_cm": mean_offset_cm,
         "imu_tilt_deg": mean_tilt_deg,
     }
-
 
 
 def print_robot_joint_info(env, env_ids, entity_cfg: SceneEntityCfg):
@@ -80,25 +69,25 @@ def print_robot_joint_info(env, env_ids, entity_cfg: SceneEntityCfg):
     once at the very beginning of the simulation.
     """
     # This is a simple flag to ensure this function's body only runs one time.
-    if not hasattr(env, '_joint_info_printed'):
+    if not hasattr(env, "_joint_info_printed"):
         robot = env.scene[entity_cfg.name]
-        
-        joint_names_in_order = robot.data.joint_names
-        default_joint_pos = robot.data.default_joint_pos[0] # Get for the first env
 
-        print("\n" + "="*40)
+        joint_names_in_order = robot.data.joint_names
+        default_joint_pos = robot.data.default_joint_pos[0]  # Get for the first env
+
+        print("\n" + "=" * 40)
         print("      ROBOT JOINT CONFIGURATION (GROUND TRUTH)")
-        print("="*40)
+        print("=" * 40)
         print("This is the exact joint order and default positions for the policy.")
-        
+
         if joint_names_in_order:
             for i, name in enumerate(joint_names_in_order):
                 default_pos_value = default_joint_pos[i].item()
                 print(f"  Index {i:<2} | Joint Name: {name:<20} | Default Pos: {default_pos_value:.4f}")
         else:
             print("Could not retrieve joint names from the live environment.")
-            
-        print("="*40 + "\n")
-        
+
+        print("=" * 40 + "\n")
+
         # Set the flag so this block never runs again.
         env._joint_info_printed = True
