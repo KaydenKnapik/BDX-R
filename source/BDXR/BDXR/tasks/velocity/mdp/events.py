@@ -1,25 +1,23 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import torch
 
-# from isaaclab.assets import Articulation
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.utils.math import quat_from_euler_xyz
 
-# from typing import TYPE_CHECKING
-
-
-# if TYPE_CHECKING:
-#     from isaaclab.envs import ManagerBasedRLEnv
+if TYPE_CHECKING:
+    from isaaclab.envs import ManagerBasedEnv
 
 
 def randomize_imu_mount(
     env: ManagerBasedEnv,
-    env_ids: Optional[torch.Tensor],
+    env_ids: torch.Tensor | None,
     sensor_cfg: SceneEntityCfg,
-    pos_range: Dict[str, Tuple[float, float]],
-    rot_range: Dict[str, Tuple[float, float]],
-) -> Dict[str, float]:
+    pos_range: dict[str, tuple[float, float]],
+    rot_range: dict[str, tuple[float, float]],
+) -> dict[str, float]:
     """Helper to randomise the IMU's local pose on every env reset."""
     imu_sensor = env.scene.sensors[sensor_cfg.name]
 

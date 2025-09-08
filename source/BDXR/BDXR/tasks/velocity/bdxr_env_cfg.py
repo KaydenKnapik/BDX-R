@@ -3,13 +3,6 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-# from isaaclab.managers import RewardTermCfg as RewTerm
-# from isaaclab.managers import SceneEntityCfg
-# from isaaclab.utils import configclass
-# import isaaclab.utils.math as math_utils
-# from typing import Dict, Optional, Tuple
-
-
 import math
 from dataclasses import MISSING
 
@@ -25,34 +18,17 @@ from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.scene import InteractiveSceneCfg
-
-# from .bdxr_velocity_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg
-# from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg, RewardsCfg
 from isaaclab.sensors import ContactSensorCfg, ImuCfg, RayCasterCfg, patterns
 from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
-
-# from isaaclab.utils.math import quat_from_euler_xyz
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
-
-# from isaaclab.utils.math import quat_from_euler_xyz
-# import torch
-# from isaaclab.envs import ManagerBasedEnv
-# from .bdxr_rewards import bipedal_air_time_reward, foot_clearance_reward, foot_slip_penalty, joint_position_penalty
-# from isaaclab.managers import EventTermCfg as EventTerm
-
-
-# from . import mdp
 
 ##
 # Pre-defined configs
 ##
 
 from BDXR.robots.bdxr import BDX_CFG  # isort:skip
-
-
-# import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
 
 ##
 # Pre-defined configs
@@ -63,7 +39,6 @@ from isaaclab.terrains.config.rough import ROUGH_TERRAINS_CFG  # isort: skip
 ##
 # Scene definition
 ##
-# This is the NEW, CORRECT line that matches what Isaac Lab expects
 
 
 @configclass
@@ -551,15 +526,6 @@ class BDXRFlatEnvCfg(ManagerBasedRLEnvCfg):
         self.commands.base_velocity.ranges.ang_vel_z = (0, 0)
 
         # change terrain
-        # self.scene.terrain.max_init_terrain_level = None
-        # reduce the number of terrains to save memory
-        # if self.scene.terrain.terrain_generator is not None:
-        #    self.scene.terrain.terrain_generator.difficulty_range = (0.0, 0.01)
-        #    self.scene.terrain.terrain_generator.num_rows = 5
-        #    self.scene.terrain.terrain_generator.num_cols = 5
-        #    self.scene.terrain.terrain_generator.curriculum = False
-
-        # change terrain
         self.scene.terrain.terrain_type = "plane"
         self.scene.terrain.terrain_generator = None
 
@@ -568,3 +534,6 @@ class BDXRFlatEnvCfg(ManagerBasedRLEnvCfg):
         self.observations.policy.height_scan = None
         # no terrain curriculum
         self.curriculum.terrain_levels = None
+
+
+# TODO add play snippet to run this environment

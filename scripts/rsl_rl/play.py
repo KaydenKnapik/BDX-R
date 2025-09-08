@@ -53,13 +53,13 @@ simulation_app = app_launcher.app
 
 """Rest everything follows."""
 
-import gymnasium as gym
 import os
 import time
+
+import BDXR.tasks  # noqa: F401
+import gymnasium as gym
+import isaaclab_tasks  # noqa: F401
 import torch
-
-from rsl_rl.runners import DistillationRunner, OnPolicyRunner
-
 from isaaclab.envs import (
     DirectMARLEnv,
     DirectMARLEnvCfg,
@@ -70,14 +70,15 @@ from isaaclab.envs import (
 from isaaclab.utils.assets import retrieve_file_path
 from isaaclab.utils.dict import print_dict
 from isaaclab.utils.pretrained_checkpoint import get_published_pretrained_checkpoint
-
-from isaaclab_rl.rsl_rl import RslRlBaseRunnerCfg, RslRlVecEnvWrapper, export_policy_as_jit, export_policy_as_onnx
-
-import isaaclab_tasks  # noqa: F401
+from isaaclab_rl.rsl_rl import (
+    RslRlBaseRunnerCfg,
+    RslRlVecEnvWrapper,
+    export_policy_as_jit,
+    export_policy_as_onnx,
+)
 from isaaclab_tasks.utils import get_checkpoint_path
 from isaaclab_tasks.utils.hydra import hydra_task_config
-
-import BDXR.tasks  # noqa: F401
+from rsl_rl.runners import DistillationRunner, OnPolicyRunner
 
 # --- MODIFICATION START --- #
 # Import matplotlib for plotting
@@ -224,18 +225,6 @@ if __name__ == "__main__":
     # close sim app
     simulation_app.close()
 
-
-
-
-
-
-
-
-
-
-
-
-
     # --- MODIFICATION START --- #
     # Dictionary to store the history of all tracked data for plotting
     # data_history = {
@@ -245,56 +234,56 @@ if __name__ == "__main__":
     # }
     # --- MODIFICATION END --- #
 
-        # ANSI escape code to move the cursor up, clearing the previous printout.
-        # if num_lines_printed > 0:
-        #     print(f"\033[{num_lines_printed}A", end="")
+    # ANSI escape code to move the cursor up, clearing the previous printout.
+    # if num_lines_printed > 0:
+    #     print(f"\033[{num_lines_printed}A", end="")
 
-        # Prepare the output string for a clean, in-place display
-        # output_string = ""
-        # obs_data = obs[0]
+    # Prepare the output string for a clean, in-place display
+    # output_string = ""
+    # obs_data = obs[0]
 
-        # --- Extract data from observation tensor ---
-        # imu_ang_vel = obs_data[0:3]
-        # projected_gravity = obs_data[3:6]
-        # velocity_commands = obs_data[6:9]
-        # joint_pos_obs = obs_data[9:19]
-        # joint_vel_obs = obs_data[19:29]
-        # last_actions = obs_data[29:39]
-        # joint_positions_rad = robot_articulation.data.joint_pos[0]
+    # --- Extract data from observation tensor ---
+    # imu_ang_vel = obs_data[0:3]
+    # projected_gravity = obs_data[3:6]
+    # velocity_commands = obs_data[6:9]
+    # joint_pos_obs = obs_data[9:19]
+    # joint_vel_obs = obs_data[19:29]
+    # last_actions = obs_data[29:39]
+    # joint_positions_rad = robot_articulation.data.joint_pos[0]
 
-        # --- MODIFICATION START --- #
-        # Store current data for plotting later. Move to CPU and convert to numpy.
-        # data_history["timesteps"].append(timestep)
-        # data_history["imu_ang_vel"].append(imu_ang_vel.cpu().numpy())
-        # data_history["projected_gravity"].append(projected_gravity.cpu().numpy())
-        # --- MODIFICATION END --- #
+    # --- MODIFICATION START --- #
+    # Store current data for plotting later. Move to CPU and convert to numpy.
+    # data_history["timesteps"].append(timestep)
+    # data_history["imu_ang_vel"].append(imu_ang_vel.cpu().numpy())
+    # data_history["projected_gravity"].append(projected_gravity.cpu().numpy())
+    # --- MODIFICATION END --- #
 
-        # Helper function for clean printing
-        # def format_array(arr_tensor):
-        #     arr = arr_tensor.cpu().numpy()
-        #     return f"[{' '.join(f'{x:7.3f}' for x in arr)}]"
+    # Helper function for clean printing
+    # def format_array(arr_tensor):
+    #     arr = arr_tensor.cpu().numpy()
+    #     return f"[{' '.join(f'{x:7.3f}' for x in arr)}]"
 
-        # Build the formatted string for printing
-        # output_string += "--- Observation Tensor Breakdown ---\n"
-        # output_string += f"IMU Ang Vel       (0:3)  : {format_array(imu_ang_vel)}\n"
-        # output_string += f"Projected Gravity (3:6)  : {format_array(projected_gravity)}\n"
-        # output_string += f"Velocity Commands (6:9) : {format_array(velocity_commands)}\n"
-        # output_string += "------------------------------------\n"
-        # output_string += "--- Robot State Observations ---\n"
-        # output_string += f"Joint Pos Obs (9:19): {format_array(joint_pos_obs)}\n"
-        # output_string += f"Joint Vel Obs (19:29): {format_array(joint_vel_obs)}\n"
-        # output_string += f"Last Action   (29:39): {format_array(last_actions)}\n"
-        # output_string += "------------------------------------\n"
-        # output_string += "--- Joint Positions (Live from Sim) ---\n"
-        # for i, name in enumerate(joint_names):
-        #     angle_rad = joint_positions_rad[i].item()
-        #     angle_deg = np.rad2deg(angle_rad)
-        #     output_string += f"{name:<20}: {angle_rad:8.4f} rad  ({angle_deg:8.2f} deg)\n"
-        # output_string += "--------------------------------------"
+    # Build the formatted string for printing
+    # output_string += "--- Observation Tensor Breakdown ---\n"
+    # output_string += f"IMU Ang Vel       (0:3)  : {format_array(imu_ang_vel)}\n"
+    # output_string += f"Projected Gravity (3:6)  : {format_array(projected_gravity)}\n"
+    # output_string += f"Velocity Commands (6:9) : {format_array(velocity_commands)}\n"
+    # output_string += "------------------------------------\n"
+    # output_string += "--- Robot State Observations ---\n"
+    # output_string += f"Joint Pos Obs (9:19): {format_array(joint_pos_obs)}\n"
+    # output_string += f"Joint Vel Obs (19:29): {format_array(joint_vel_obs)}\n"
+    # output_string += f"Last Action   (29:39): {format_array(last_actions)}\n"
+    # output_string += "------------------------------------\n"
+    # output_string += "--- Joint Positions (Live from Sim) ---\n"
+    # for i, name in enumerate(joint_names):
+    #     angle_rad = joint_positions_rad[i].item()
+    #     angle_deg = np.rad2deg(angle_rad)
+    #     output_string += f"{name:<20}: {angle_rad:8.4f} rad  ({angle_deg:8.2f} deg)\n"
+    # output_string += "--------------------------------------"
 
-        # Print the entire block
-        # print(output_string, flush=True)
-        # num_lines_printed = output_string.count("\n") + 1
+    # Print the entire block
+    # print(output_string, flush=True)
+    # num_lines_printed = output_string.count("\n") + 1
 
     # --- MODIFICATION START --- #
     # Plotting and saving logic after the simulation loop finishes
