@@ -14,7 +14,7 @@ from isaaclab_rl.rsl_rl import (
 @configclass
 class PPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
-    max_iterations = 3000
+    max_iterations = 2000
     save_interval = 50
     experiment_name = "bdx_flat"
     empirical_normalization = False
