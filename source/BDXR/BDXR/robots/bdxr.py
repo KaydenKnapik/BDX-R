@@ -19,7 +19,7 @@ from pathlib import Path
 TEMPLATE_ASSETS_DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
 
 import isaaclab.sim as sim_utils
-from isaaclab.actuators import ImplicitActuatorCfg
+from isaaclab.actuators import ImplicitActuatorCfg, DelayedPDActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
 
 ##
@@ -28,7 +28,7 @@ from isaaclab.assets.articulation import ArticulationCfg
 
 BDX_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path=f"{TEMPLATE_ASSETS_DATA_DIR}/Robots/BDXR/BDX-RFinal.usd",
+        usd_path=f"{TEMPLATE_ASSETS_DATA_DIR}/Robots/BDXR/BDXR/BDX-RFinal.usd",
         # usd_path=f"{TEMPLATE_ASSETS_DATA_DIR}/Robots/Disney/BDX/BDXREACH.usd",
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
@@ -48,22 +48,31 @@ BDX_CFG = ArticulationCfg(
         pos=(0.0, 0.0, 0.30846),
     ),
     actuators={
-        "legs": ImplicitActuatorCfg(
+        "legs": DelayedPDActuatorCfg(
             joint_names_expr=[".*_Hip_Yaw", ".*_Hip_Roll", ".*_Hip_Pitch", ".*_Knee", ".*_Ankle"],
             stiffness={
-                ".*_Hip_Yaw": 70.0,
-                ".*_Hip_Roll": 150.0,
-                ".*_Hip_Pitch": 70.0,
-                ".*_Knee": 40.0,
+                ".*_Hip_Yaw": 60.0,
+                ".*_Hip_Roll": 60.0,
+                ".*_Hip_Pitch": 60.0,
+                ".*_Knee": 60.0,
                 ".*_Ankle": 20.0,
             },
             damping={
-                ".*_Hip_Yaw": 5.0,
-                ".*_Hip_Roll": 12.0,
-                ".*_Hip_Pitch": 4.5,
-                ".*_Knee": 1.5,
-                ".*_Ankle": 1,
+                ".*_Hip_Yaw": 2.0,
+                ".*_Hip_Roll": 2.0,
+                ".*_Hip_Pitch": 2.5,
+                ".*_Knee": 2.0,
+                ".*_Ankle": 1.0,
             },
+            armature={
+                ".*_Hip_Yaw": 0.02,
+                ".*_Hip_Roll": 0.02,
+                ".*_Hip_Pitch": 0.02,
+                ".*_Knee": 0.02,
+                ".*_Ankle": 0.0042,
+            },
+            min_delay=0,  # physics time steps (min: 2.0*0=0.0ms)
+            max_delay=4
         ),
     },
     soft_joint_pos_limit_factor=0.95,
