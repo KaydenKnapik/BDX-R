@@ -6,6 +6,7 @@
 import math
 from dataclasses import MISSING
 
+import BDXR.tasks.velocity.mdp as mdp
 import isaaclab.sim as sim_utils
 from isaaclab.assets import ArticulationCfg, AssetBaseCfg
 from isaaclab.envs import ManagerBasedRLEnvCfg
@@ -17,16 +18,17 @@ from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
 from isaaclab.managers import TerminationTermCfg as DoneTerm
 from isaaclab.scene import InteractiveSceneCfg
-from isaaclab.sensors import ContactSensorCfg, RayCasterCfg, patterns
+from isaaclab.sensors import ContactSensorCfg, ImuCfg, RayCasterCfg, patterns
 from isaaclab.terrains import TerrainImporterCfg
 from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR, ISAACLAB_NUCLEUS_DIR
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
-import isaaclab.envs.mdp.events as mdp_events
 
-import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
+##
+# Pre-defined configs
+##
 
-import isaaclab.envs.mdp.curriculums as mdp_curriculum
+from BDXR.robots.bdxr import BDX_CFG  # isort:skip
 
 ##
 # Pre-defined configs
@@ -37,35 +39,6 @@ from isaaclab.terrains.config.rough import ROUGH_TERRAINS_CFG  # isort: skip
 ##
 # Scene definition
 ##
-# This is the NEW, CORRECT line that matches what Isaac Lab expects
-def print_robot_joint_info(env, env_ids, entity_cfg: SceneEntityCfg):
-    """
-    An event function to print the robot's joint order and default positions
-    once at the very beginning of the simulation.
-    """
-    # This is a simple flag to ensure this function's body only runs one time.
-    if not hasattr(env, '_joint_info_printed'):
-        robot = env.scene[entity_cfg.name]
-        
-        joint_names_in_order = robot.data.joint_names
-        default_joint_pos = robot.data.default_joint_pos[0] # Get for the first env
-
-        print("\n" + "="*40)
-        print("      ROBOT JOINT CONFIGURATION (GROUND TRUTH)")
-        print("="*40)
-        print("This is the exact joint order and default positions for the policy.")
-        
-        if joint_names_in_order:
-            for i, name in enumerate(joint_names_in_order):
-                default_pos_value = default_joint_pos[i].item()
-                print(f"  Index {i:<2} | Joint Name: {name:<20} | Default Pos: {default_pos_value:.4f}")
-        else:
-            print("Could not retrieve joint names from the live environment.")
-            
-        print("="*40 + "\n")
-        
-        # Set the flag so this block never runs again.
-        env._joint_info_printed = True
 
 
 @configclass
@@ -154,7 +127,7 @@ class ObservationsCfg:
 
         # observation terms (order preserved)
         imu_ang_vel = ObsTerm(func=mdp.imu_ang_vel, noise=Unoise(n_min=-0.1, n_max=0.1))
-        #imu_lin_acc = ObsTerm(func=mdp.imu_lin_acc, noise=Unoise(n_min=-0.5, n_max=0.5))
+        # imu_lin_acc = ObsTerm(func=mdp.imu_lin_acc, noise=Unoise(n_min=-0.5, n_max=0.5))
 
         projected_gravity = ObsTerm(
             func=mdp.projected_gravity,
@@ -184,9 +157,9 @@ class EventCfg:
     """Configuration for events."""
 
     verify_joint_order = EventTerm(
-        func=print_robot_joint_info,
-        mode="startup", # <-- This makes it run only ONCE at the very beginning.
-        params={"entity_cfg": SceneEntityCfg("robot")}
+        func=mdp.print_robot_joint_info,
+        mode="startup",  # <-- This makes it run only ONCE at the very beginning.
+        params={"entity_cfg": SceneEntityCfg("robot")},
     )
 
     # startup
@@ -230,7 +203,7 @@ class EventCfg:
             "operation": "scale",
             "stiffness_distribution_params": (0.6, 1.4),
             "damping_distribution_params": (0.6, 1.4),
-        }
+        },
     )
     randomize_joint_parameters = EventTerm(
         func=mdp.randomize_joint_parameters,
@@ -240,7 +213,7 @@ class EventCfg:
             "operation": "scale",
             "friction_distribution_params": (0.8, 1.2),
             "armature_distribution_params": (0.8, 1.2),
-        }
+        },
     )
 
     reset_base = EventTerm(
@@ -258,7 +231,6 @@ class EventCfg:
             },
         },
     )
-    
 
     reset_robot_joints = EventTerm(
         func=mdp.reset_joints_by_scale,
@@ -282,7 +254,9 @@ class EventCfg:
 class RewardsCfg:
     """Reward terms for the MDP."""
 
-    ## -- task
+    termination_penalty = RewTerm(func=mdp.is_terminated, weight=-200.0)
+
+    # -- task
     track_lin_vel_xy_exp = RewTerm(
         func=mdp.track_lin_vel_xy_exp, weight=1.0, params={"command_name": "base_velocity", "std": math.sqrt(0.25)}
     )
@@ -295,15 +269,6 @@ class RewardsCfg:
     dof_torques_l2 = RewTerm(func=mdp.joint_torques_l2, weight=-1.5e-7)
     dof_acc_l2 = RewTerm(func=mdp.joint_acc_l2, weight=-1.25e-7)
     action_rate_l2 = RewTerm(func=mdp.action_rate_l2, weight=-0.05)
-    #feet_air_time = RewTerm(
-    #    func=mdp.feet_air_time,
-    #    weight=3,
-    #    params={
-    #        "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*Foot"),
-    #        "command_name": "base_velocity",
-    #        "threshold": 0.5,
-    #    },
-    #)
     undesired_contacts = RewTerm(
         func=mdp.undesired_contacts,
         weight=-1.0,
@@ -317,6 +282,64 @@ class RewardsCfg:
         weight=-0.0001,
         params={"asset_cfg": SceneEntityCfg("robot")},
     )
+    air_time = RewTerm(
+        func=mdp.bipedal_air_time_reward,
+        weight=5.0,
+        params={
+            "mode_time": 0.3,
+            "velocity_threshold": 0.5,
+            "asset_cfg": SceneEntityCfg("robot"),
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_FOOT"),
+        },
+    )
+    # penalize ankle joint limits
+    dof_pos_limits = RewTerm(
+        func=mdp.joint_pos_limits,
+        weight=-1.0,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*_Ankle")},
+    )
+    # penalize deviation from default of the joints that are not essential for locomotion
+    joint_deviation_hip = RewTerm(
+        func=mdp.joint_deviation_l1,
+        weight=-1,
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_Hip_Yaw", ".*_Hip_Roll"])},
+    )
+    foot_clearance = RewTerm(
+        func=mdp.foot_clearance_reward,
+        weight=2,
+        params={
+            "std": 0.05,
+            "tanh_mult": 2.0,
+            "target_height": 0.1,
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*_FOOT"),
+        },
+    )
+    foot_slip = RewTerm(
+        func=mdp.foot_slip_penalty,
+        weight=-0.5,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*_FOOT"),
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_FOOT"),
+            "threshold": 1.0,
+        },
+    )
+    base_height_deviation = RewTerm(
+        func=mdp.base_height_l2,
+        weight=-2,  # Tune this weight as needed
+        params={
+            "target_height": 0.30846,
+            "asset_cfg": SceneEntityCfg(name="robot", body_names=["base_link"]),
+        },
+    )
+    joint_pos = RewTerm(
+        func=mdp.joint_position_penalty,
+        weight=-1,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
+            "stand_still_scale": 5.0,
+            "velocity_threshold": 0.5,
+        },
+    )
 
 
 @configclass
@@ -329,6 +352,7 @@ class TerminationsCfg:
         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names="base"), "threshold": 1.0},
     )
 
+
 # --- THIS IS THE CORRECTED CUSTOM FUNCTION ---
 def modify_push_velocity_in_dict(env, env_ids, old_params_dict, new_velocity_range, num_steps):
     """
@@ -337,12 +361,14 @@ def modify_push_velocity_in_dict(env, env_ids, old_params_dict, new_velocity_ran
     """
     if env.common_step_counter > num_steps:
         # Modify the 'velocity_range' key in the dictionary we received
-        old_params_dict['velocity_range'] = new_velocity_range
+        old_params_dict["velocity_range"] = new_velocity_range
         # Return the ENTIRE modified dictionary
         return old_params_dict
     else:
         # It's not time yet, so signal that no change should be made.
-        return mdp_curriculum.modify_env_param.NO_CHANGE
+        return mdp.modify_env_param.NO_CHANGE
+
+
 @configclass
 class CurriculumCfg:
     """Curriculum terms for the MDP."""
@@ -351,14 +377,14 @@ class CurriculumCfg:
 
     # --- THIS IS THE FINAL CORRECTED CURRICULUM TERM ---
     activate_push = CurrTerm(
-        func=mdp_curriculum.modify_env_param,
+        func=mdp.modify_env_param,
         params={
             # PARAM 1: "address" - Correctly points to the dictionary itself.
             "address": "event_manager.cfg.push_robot.params",
-#
+            #
             # PARAM 2: "modify_fn" - Uses our new dictionary-modifying function.
             "modify_fn": modify_push_velocity_in_dict,
-#
+            #
             # PARAM 3: "modify_params" - This stays the same.
             "modify_params": {
                 "new_velocity_range": {"x": (-0.1, 0.1), "y": (-0.1, 0.1)},
@@ -367,14 +393,14 @@ class CurriculumCfg:
         },
     )
     activate_harder_push = CurrTerm(
-        func=mdp_curriculum.modify_env_param,
+        func=mdp.modify_env_param,
         params={
             # PARAM 1: "address" - Correctly points to the dictionary itself.
             "address": "event_manager.cfg.push_robot.params",
-#
+            #
             # PARAM 2: "modify_fn" - Uses our new dictionary-modifying function.
             "modify_fn": modify_push_velocity_in_dict,
-#
+            #
             # PARAM 3: "modify_params" - This stays the same.
             "modify_params": {
                 "new_velocity_range": {"x": (-0.2, 0.2), "y": (-0.2, 0.2)},
@@ -383,14 +409,16 @@ class CurriculumCfg:
         },
     )
 
+
 ##
 # Environment configuration
 ##
 
 
+# TODO: instead of setting everything here, change the default values in the base cfg files
 @configclass
-class LocomotionVelocityRoughEnvCfg(ManagerBasedRLEnvCfg):
-    """Configuration for the locomotion velocity-tracking environment."""
+class BDXRFlatEnvCfg(ManagerBasedRLEnvCfg):
+    """BDXR flat environment configuration."""
 
     # Scene settings
     scene: MySceneCfg = MySceneCfg(num_envs=4096, env_spacing=2.5)
@@ -429,3 +457,83 @@ class LocomotionVelocityRoughEnvCfg(ManagerBasedRLEnvCfg):
         else:
             if self.scene.terrain.terrain_generator is not None:
                 self.scene.terrain.terrain_generator.curriculum = False
+
+        # scene
+        self.scene.robot = BDX_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/base_link"
+        self.scene.imu = ImuCfg(prim_path="{ENV_REGEX_NS}/Robot/IMU_Mount", debug_vis=True)  # change if needed
+
+        # actions
+        self.actions.joint_pos.scale = 0.5
+
+        # events
+        self.events.push_robot.params["velocity_range"] = {"x": (0.0, 0.0), "y": (0.0, 0.0)}
+        # self.events.push_robot = None
+        self.events.add_base_mass.params["asset_cfg"].body_names = ["base_link"]
+        self.events.add_base_mass.params["mass_distribution_params"] = (-0.5, 0.5)
+        self.events.reset_robot_joints.params["position_range"] = (0.8, 1.2)
+        self.events.base_external_force_torque.params["asset_cfg"].body_names = ["base_link"]
+        self.events.physics_material.params["static_friction_range"] = (0.1, 2)
+        self.events.physics_material.params["dynamic_friction_range"] = (0.1, 2)
+        self.events.physics_material.params["asset_cfg"].body_names = ".*_FOOT"
+        self.events.randomize_imu_mount = EventTerm(
+            func=mdp.randomize_imu_mount,
+            mode="reset",
+            params={
+                "sensor_cfg": SceneEntityCfg("imu"),
+                "pos_range": {
+                    "x": (-0.05, 0.05),
+                    "y": (-0.05, 0.05),
+                    "z": (-0.05, 0.05),
+                },
+                "rot_range": {
+                    "roll": (-0.1, 0.1),
+                    "pitch": (-0.1, 0.1),
+                    "yaw": (-0.1, 0.1),
+                },
+            },
+        )
+
+        self.events.reset_base.params = {
+            "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},
+            "velocity_range": {
+                "x": (0.0, 0.0),
+                "y": (0.0, 0.0),
+                "z": (0.0, 0.0),
+                "roll": (0.0, 0.0),
+                "pitch": (0.0, 0.0),
+                "yaw": (0.0, 0.0),
+            },
+        }
+
+        # terminations
+        self.terminations.base_contact.params["sensor_cfg"].body_names = [
+            "base_link",
+        ]
+
+        # rewards
+        self.rewards.undesired_contacts = None
+        self.rewards.dof_torques_l2.weight = -5.0e-6
+        self.rewards.track_lin_vel_xy_exp.weight = 5.0
+        self.rewards.track_ang_vel_z_exp.weight = 5.0
+        self.rewards.action_rate_l2.weight = -0.05  # A significant penalty on action rate
+        self.rewards.dof_acc_l2.weight = -1.25e-7  # A significant penalty on acceleration
+        self.rewards.flat_orientation_l2.weight = -2
+
+        # Walk
+        self.commands.base_velocity.ranges.lin_vel_x = (0, 0)
+        self.commands.base_velocity.ranges.lin_vel_y = (-0.7, 0.0)
+        self.commands.base_velocity.ranges.ang_vel_z = (0, 0)
+
+        # change terrain
+        self.scene.terrain.terrain_type = "plane"
+        self.scene.terrain.terrain_generator = None
+
+        # no height scan
+        self.scene.height_scanner = None
+        self.observations.policy.height_scan = None
+        # no terrain curriculum
+        self.curriculum.terrain_levels = None
+
+
+# TODO add play snippet to run this environment
