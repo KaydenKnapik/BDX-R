@@ -71,6 +71,20 @@ BDX_CFG = ArticulationCfg(
                 ".*_Knee": 0.02,
                 ".*_Ankle": 0.0042,
             },
+            effort_limit_sim={
+                ".*_Hip_Yaw": 42.0,
+                ".*_Hip_Roll": 42.0,
+                ".*_Hip_Pitch": 42.0,
+                ".*_Knee": 42.0,
+                ".*_Ankle": 11.9,
+            },
+            velocity_limit_sim={
+                ".*_Hip_Yaw": 18.849,
+                ".*_Hip_Roll": 18.849,
+                ".*_Hip_Pitch": 18.849,
+                ".*_Knee": 18.849,
+                ".*_Ankle": 37.699,
+            },
             min_delay=0,  # physics time steps (min: 2.0*0=0.0ms)
             max_delay=4
         ),
