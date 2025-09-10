@@ -170,10 +170,10 @@ class CommandsCfg:
         heading_command=False,
         debug_vis=True,
         ranges=mdp.UniformLevelVelocityCommandCfg.Ranges(
-            lin_vel_x=(-0.1, 0.1), lin_vel_y=(-0.1, 0.1), ang_vel_z=(-0.1, 0.1)
+            lin_vel_x=(-0.05, 0.05), lin_vel_y=(-0.2, 0.05), ang_vel_z=(-0.05, 0.05)
         ),
         limit_ranges=mdp.UniformLevelVelocityCommandCfg.Ranges(
-            lin_vel_x=(-0.3, 1.0), lin_vel_y=(-0.3, 0.3), ang_vel_z=(-0.5, 0.5)
+            lin_vel_x=(-0.1, 0.1), lin_vel_y=(-0.7, 0.1), ang_vel_z=(-0.1, 0.1)
         ),
     )
 
@@ -288,7 +288,7 @@ class RewardsCfg:
 
     # -- robot
     flat_orientation_l2 = RewTerm(func=mdp.flat_orientation_l2, weight=-1.0)
-    base_height = RewTerm(func=mdp.base_height_l2, weight=-10, params={"target_height": 0.9})
+    base_height = RewTerm(func=mdp.base_height_l2, weight=-10, params={"target_height": 0.30846})
 
     # -- feet
     gait = RewTerm(
@@ -315,7 +315,7 @@ class RewardsCfg:
         params={
             "std": 0.05,
             "tanh_mult": 2.0,
-            "target_height": 0.15,
+            "target_height": 0.1,
             "asset_cfg": SceneEntityCfg("robot", body_names=".*_FOOT"),
         },
     )

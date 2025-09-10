@@ -42,7 +42,7 @@ class PPORunnerCfg(RslRlOnPolicyRunnerCfg):
 @configclass
 class FullPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
-    max_iterations = 50000
+    max_iterations = 30000
     save_interval = 100
     experiment_name = "full_bdxr"
     empirical_normalization = False
