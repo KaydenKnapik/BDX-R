@@ -197,7 +197,10 @@ class ObservationsCfg:
 
         # observation terms (order preserved)
         imu_ang_vel = ObsTerm(func=mdp.imu_ang_vel, noise=Unoise(n_min=-0.1, n_max=0.1))
-        imu_lin_acc = ObsTerm(func=mdp.imu_lin_acc, noise=Unoise(n_min=-0.5, n_max=0.5))
+        projected_gravity = ObsTerm(
+            func=mdp.projected_gravity,
+            noise=Unoise(n_min=-0.1, n_max=0.1),
+        )
         velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
         joint_pos_rel = ObsTerm(func=mdp.joint_pos_rel, noise=Unoise(n_min=-0.01, n_max=0.01))
         joint_vel_rel = ObsTerm(func=mdp.joint_vel_rel, scale=0.05, noise=Unoise(n_min=-1.5, n_max=1.5))
