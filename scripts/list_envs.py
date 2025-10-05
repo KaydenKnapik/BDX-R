@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2025, The Isaac Lab Project Developers.
+# Copyright (c) 2022-2025, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
 # All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
@@ -9,7 +9,7 @@ Script to print all the available environments in Isaac Lab.
 The script iterates over all registered environments and stores the details in a table.
 It prints the name of the environment, the entry point and the config file.
 
-All the environments are registered in the `disney_bdx` extension. They start
+All the environments are registered in the `BDXR` extension. They start
 with `Isaac` in their name.
 """
 
@@ -24,13 +24,14 @@ simulation_app = app_launcher.app
 
 """Rest everything follows."""
 
-import BDXR.tasks  # noqa: F401
 import gymnasium as gym
 from prettytable import PrettyTable
 
+import BDXR.tasks  # noqa: F401
+
 
 def main():
-    """Print all environments registered in `disney_bdx` extension."""
+    """Print all environments registered in `BDXR` extension."""
     # print all the available environments
     table = PrettyTable(["S. No.", "Task Name", "Entry Point", "Config"])
     table.title = "Available Environments in Isaac Lab"
