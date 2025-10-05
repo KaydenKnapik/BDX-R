@@ -3,12 +3,8 @@
 #
 # SPDX-License-Identifier: BSD-3-Clause
 
-"""
-Python module serving as a project/extension template.
-"""
+"""This sub-module contains the functions that are specific to the environment."""
 
-# Register Gym environments.
-from .tasks import *
+from isaaclab.envs.mdp import *  # noqa: F401, F403
 
-# Register UI extensions.
-from .ui_extension_example import *
+from .rewards import *  # noqa: F401, F403

@@ -28,7 +28,7 @@ from isaaclab.assets.articulation import ArticulationCfg
 
 BDX_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path=f"{TEMPLATE_ASSETS_DATA_DIR}/Robots/BDXR/BDXR/BDX-RFinal.usd",
+        usd_path=f"{TEMPLATE_ASSETS_DATA_DIR}/Robots/BDXR/BDX-R.usd",
         # usd_path=f"{TEMPLATE_ASSETS_DATA_DIR}/Robots/Disney/BDX/BDXREACH.usd",
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
@@ -51,18 +51,18 @@ BDX_CFG = ArticulationCfg(
         "legs": DelayedPDActuatorCfg(
             joint_names_expr=[".*_Hip_Yaw", ".*_Hip_Roll", ".*_Hip_Pitch", ".*_Knee", ".*_Ankle"],
             stiffness={
-                ".*_Hip_Yaw": 30.0,
-                ".*_Hip_Roll": 30.0,
-                ".*_Hip_Pitch": 30.0,
-                ".*_Knee": 30.0,
-                ".*_Ankle": 10.0,
+                ".*_Hip_Yaw": 78.0,
+                ".*_Hip_Roll": 78.0,
+                ".*_Hip_Pitch": 78.0,
+                ".*_Knee": 78.0,
+                ".*_Ankle": 17.0,
             },
             damping={
-                ".*_Hip_Yaw": 2.0,
-                ".*_Hip_Roll": 2.0,
-                ".*_Hip_Pitch": 2.0,
-                ".*_Knee": 2.0,
-                ".*_Ankle": 0.6,
+                ".*_Hip_Yaw": 5.0,
+                ".*_Hip_Roll": 5.0,
+                ".*_Hip_Pitch": 5.0,
+                ".*_Knee": 5.0,
+                ".*_Ankle": 1.0,
             },
             armature={
                 ".*_Hip_Yaw": 0.02,

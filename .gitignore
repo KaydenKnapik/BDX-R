@@ -8,6 +8,12 @@
 **/*.dmp
 **/.thumbs
 
+# No USD files allowed in the repo
+**/*.usd
+**/*.usda
+**/*.usdc
+**/*.usdz
+
 # Python
 .DS_Store
 **/*.egg-info/
@@ -57,3 +63,9 @@ _build
 
 # Teleop Recorded Dataset
 datasets
+
+# Tests
+tests/
+
+# Docker history
+.isaac-lab-docker-history
