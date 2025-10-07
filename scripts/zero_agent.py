@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2025, The Isaac Lab Project Developers.
+# Copyright (c) 2022-2025, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
 # All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
@@ -29,11 +29,13 @@ simulation_app = app_launcher.app
 
 """Rest everything follows."""
 
-import BDXR.tasks  # noqa: F401
 import gymnasium as gym
-import isaaclab_tasks  # noqa: F401
 import torch
+
+import isaaclab_tasks  # noqa: F401
 from isaaclab_tasks.utils import parse_env_cfg
+
+import BDXR.tasks  # noqa: F401
 
 
 def main():
