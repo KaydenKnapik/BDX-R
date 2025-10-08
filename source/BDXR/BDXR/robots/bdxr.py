@@ -1,25 +1,9 @@
-# Copyright (c) 2022-2025, The Isaac Lab Project Developers.
-# All rights reserved.
-#
-# SPDX-License-Identifier: BSD-3-Clause
-
-"""Configuration for the Disney Research robots.
-
-The following configuration parameters are available:
-
-* :obj:`BDX_CFG`: The BD-X robot with implicit Actuator model
-
-Reference:
-
-* https://github.com/rimim/AWD/tree/main/awd/data/assets/go_bdx
-
-"""
 from pathlib import Path
 
-TEMPLATE_ASSETS_DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
+TEMPLATE_ASSETS_DATA_DIR = Path(__file__).resolve().parents[2] / "data"
 
 import isaaclab.sim as sim_utils
-from isaaclab.actuators import ImplicitActuatorCfg, DelayedPDActuatorCfg
+from isaaclab.actuators import ImplicitActuatorCfg, DelayedPDActuatorCfg # noqa: F401
 from isaaclab.assets.articulation import ArticulationCfg
 
 ##
@@ -27,9 +11,10 @@ from isaaclab.assets.articulation import ArticulationCfg
 ##
 
 BDX_CFG = ArticulationCfg(
+    # TODO: Change by the URDF directly by adding in the installation setup, the need to curl
+    # It will reduce the weight of this repository
     spawn=sim_utils.UsdFileCfg(
-        usd_path=f"{TEMPLATE_ASSETS_DATA_DIR}/Robots/BDXR/BDXR/BDX-RFinal.usd",
-        # usd_path=f"{TEMPLATE_ASSETS_DATA_DIR}/Robots/Disney/BDX/BDXREACH.usd",
+        usd_path=f"{TEMPLATE_ASSETS_DATA_DIR}/Robots/BDXR/BDX-R.usd",
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
@@ -48,21 +33,22 @@ BDX_CFG = ArticulationCfg(
         pos=(0.0, 0.0, 0.30846),
     ),
     actuators={
+        # TODO: Implement these gains as formula, to understand better where it come from (mention BeyondMimic inspiration)
         "legs": DelayedPDActuatorCfg(
             joint_names_expr=[".*_Hip_Yaw", ".*_Hip_Roll", ".*_Hip_Pitch", ".*_Knee", ".*_Ankle"],
             stiffness={
-                ".*_Hip_Yaw": 30.0,
-                ".*_Hip_Roll": 30.0,
-                ".*_Hip_Pitch": 30.0,
-                ".*_Knee": 30.0,
-                ".*_Ankle": 10.0,
+                ".*_Hip_Yaw": 78.0,
+                ".*_Hip_Roll": 78.0,
+                ".*_Hip_Pitch": 78.0,
+                ".*_Knee": 78.0,
+                ".*_Ankle": 17.0,
             },
             damping={
-                ".*_Hip_Yaw": 2.0,
-                ".*_Hip_Roll": 2.0,
-                ".*_Hip_Pitch": 2.0,
-                ".*_Knee": 2.0,
-                ".*_Ankle": 0.6,
+                ".*_Hip_Yaw": 5.0,
+                ".*_Hip_Roll": 5.0,
+                ".*_Hip_Pitch": 5.0,
+                ".*_Knee": 5.0,
+                ".*_Ankle": 1.0,
             },
             armature={
                 ".*_Hip_Yaw": 0.02,
@@ -92,3 +78,5 @@ BDX_CFG = ArticulationCfg(
     soft_joint_pos_limit_factor=0.95,
 )
 """Configuration for the Disney BD-X robot with implicit actuator model."""
+
+# TODO: Add dynamic scaling
