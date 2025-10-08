@@ -166,9 +166,9 @@ class ObservationsCfg:
         # observation terms (order preserved)
         imu_ang_vel = ObsTerm(func=mdp.imu_ang_vel, noise=Unoise(n_min=-0.1, n_max=0.1))
 
-        # TODO: Why not use imu projected gravity?
-        projected_gravity = ObsTerm(
-            func=mdp.projected_gravity,
+        # TODO: Adds IMu Projected Gravity
+        imu_projected_gravity = ObsTerm(
+            func=mdp.imu_projected_gravity,
             noise=Unoise(n_min=-0.1, n_max=0.1),
         )
         velocity_commands = ObsTerm(func=mdp.generated_commands, params={"command_name": "base_velocity"})
@@ -238,13 +238,13 @@ class BDXRRewards(RewardsCfg):
         weight=-2,
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_Hip_Yaw", ".*_Hip_Roll"])},
     )
-    base_height_l2 = RewTerm(
-        func=mdp.base_height_l2,
-        weight=-1.5,  # Negative weight to create a penalty
-        params={"target_height": 0.5}  # IMPORTANT: Set this to your robot's desired base height in meters
-    )
+    #base_height_l2 = RewTerm(
+    #    func=mdp.base_height_l2,
+    #    weight=-1.5,  # Negative weight to create a penalty
+    #    params={"target_height": 0.3}  # IMPORTANT: Set this to your robot's desired base height in meters
+    #)
 
-# TODO: With the way it's implemented, it is not used, should we remove it or use it
+# TODO: With the way it's implemented, it is not used, should we remove it or use itS
 @configclass
 class EventCfg:
     """Configuration for events."""
@@ -347,7 +347,8 @@ class EventCfg:
 @configclass
 class BdxrEnvCfg(LocomotionVelocityRoughEnvCfg):
     rewards: BDXRRewards = BDXRRewards()
-    observations: ObservationsCfg = ObservationsCfg() 
+    observations: ObservationsCfg = ObservationsCfg()
+    events: EventCfg = EventCfg()
 
     def __post_init__(self):
         # post init of parent
@@ -419,7 +420,7 @@ class BdxrEnvCfg(LocomotionVelocityRoughEnvCfg):
 
         # Rewards
         # TODO: remove all this to place it in the reward manager directly
-        self.rewards.lin_vel_z_l2.weight = -5.0
+        self.rewards.lin_vel_z_l2.weight = -1.0
         self.rewards.undesired_contacts = None
         self.rewards.flat_orientation_l2.weight = -5
         self.rewards.action_rate_l2.weight = -0.5
